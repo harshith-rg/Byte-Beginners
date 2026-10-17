@@ -1,73 +1,76 @@
-# PathVoice — IBM Z Datathon starter
+# Byte-Beginners — PathVoice & AI Navigation Assistant
 
-PathVoice serves a phone-friendly frontend from FastAPI. The browser sends 320 px-wide JPEG camera frames to the backend over a WebSocket; the backend runs YOLO object detection and returns normalized detections for display and spoken alerts. Turn-by-turn routing, watsonx.ai scene descriptions, and full SOS contact settings are not implemented.
+Byte-Beginners is an accessibility-focused AI navigation and obstacle-awareness system developed for the IBM Z Datathon. It combines phone-friendly live camera streaming with WebSocket-driven object detection, audio/voice guidance, tracking, and IBM LinuxONE deployment support.
 
-The default inference engine is Ultralytics using `backend/yolo11n.pt`. An
-experimental OpenCV DNN ONNX engine is available only when explicitly selected
-with `PATHVOICE_INFERENCE_ENGINE=onnx`; it expects a YOLO11 COCO ONNX export
-with 640-by-640 input. The checked-in repository does not include that ONNX
-export, and its LinuxONE inference path has not been validated on the VM.
+## Overview
 
-The **Describe scene** action uses the latest successfully processed frame's
-object-detection labels to produce a cautious local text description. **What
-is around me?** gives a compact count of those labels. These are not
-watsonx.ai or full scene-understanding features: they cannot establish exact
-distances, safe paths, or details the detector did not recognize.
+The repository integrates contributions from across the project milestones:
+- **M1 (Lakshman)**: LinuxONE deployment (`DEPLOY_LINUXONE.md`), ONNX inference engine (`backend/detector_onnx.py`), test suite, and integration.
+- **M2 (John)**: YOLOv8 object detection, ByteTrack object tracking (`track.py`), and speech tests.
+- **M3 (Ani)**: Alert engine (`backend/alerts.py`), scene description (`backend/describe.py`), and WebSocket backend.
+- **M4 (Harish)**: Navigation and route mapping services.
+- **M5 (Harshith)**: Frontend UI and client applications.
+- **M6**: Presentation, pitch, and demo assets.
 
-Voice commands use the browser's Web Speech recognition service when
-available; this browser feature may require internet access and is not
-guaranteed to work offline. If recognition is unsupported, denied, or reports
-a network error, use the on-page text command field instead. Navigate accepts
-a typed destination, but PathVoice does not calculate routes or provide
-turn-by-turn directions. PathVoice displays this safety notice when you use
-Navigate: “PathVoice does not provide turn-by-turn directions. Use a dedicated
-navigation app for route guidance. PathVoice has not verified your route or
-its safety.”
+---
 
-Spoken output uses the browser's native speech synthesis, independently from
-voice-command recognition. Use **Test Voice** to check output without starting
-the camera. The page reports voice readiness or failure; check the browser's
-audio output and device volume if speech does not play.
+## 1. PathVoice Web Application (FastAPI + WebSocket)
 
-## Requirements
+PathVoice serves a phone-friendly frontend from FastAPI. The browser sends 320 px-wide JPEG camera frames over a WebSocket; the backend runs YOLO object detection and returns normalized detections for display and spoken alerts.
+
+### Requirements
 - Python 3.10+
 - Dependencies from `backend/requirements.txt`
-- `backend/yolo11n.pt` for default Ultralytics mode, or a generated
-  `backend/yolo11n.onnx` for the opt-in LinuxONE mode
-- A modern browser; Android Chrome is the recommended first demo target
-- For phone camera/GPS access, use HTTPS (a tunnel) rather than plain HTTP
+- `backend/yolo11n.pt` for default Ultralytics mode, or `backend/yolo11n.onnx` for opt-in LinuxONE mode
+- A modern browser (Chrome recommended)
 
-## Run locally
-
-From the project root:
+### Run PathVoice Locally
 
 ```bash
 python -m venv .venv
-# macOS/Linux
+# Windows PowerShell:
+.venv\Scripts\Activate.ps1
+# macOS/Linux:
 source .venv/bin/activate
-# Windows PowerShell: .venv\Scripts\Activate.ps1
+
 python -m pip install --upgrade pip
 python -m pip install -r backend/requirements.txt
 cd backend
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Open `http://localhost:8000` on the same computer and check `http://localhost:8000/health`. To test on a phone, expose port 8000 through Cloudflare Tunnel or ngrok and open its HTTPS URL. Start the camera and verify that the frame counter increases.
+Open `http://localhost:8000` in your browser. Check health at `http://localhost:8000/health`.
 
-The frontend sends one frame at a time and waits for its response before
-sending another. The selected inference engine and its model load during
-backend startup, so those dependencies and model files must be available before
-the health endpoint can respond.
+For IBM LinuxONE deployment notes, including the ONNX path, see [DEPLOY_LINUXONE.md](./DEPLOY_LINUXONE.md).
 
-For IBM LinuxONE deployment notes, including the opt-in ONNX path and its
-compatibility and inference checks, see [DEPLOY_LINUXONE.md](./DEPLOY_LINUXONE.md).
+---
 
-## Team file ownership
-- M1: integration, deployment, voice commands
-- M2: `backend/detector.py` and detector tests
-- M3: `backend/main.py`, `backend/alerts.py`, `backend/describe.py`
-- M4: `backend/navigation.py` and frontend navigation/SOS modules
-- M5: `frontend/index.html`, `frontend/app.js` and camera/WebSocket behaviour
-- M6: `frontend/style.css`, tests/log, README, pitch and demo assets
+## 2. Standalone Video Tracking & Voice Assistant (M2)
 
-Keep secrets in `.env`, never commit them, and do not use this prototype as a sole mobility aid.
+An accessibility prototype that detects and tracks everyday objects in video, announcing newly observed objects with text-to-speech.
+
+### Run Tracker
+```bash
+python track.py
+```
+
+### Other Scripts
+| Command | Purpose |
+| --- | --- |
+| `python detech.py` | Runs YOLOv8 detection on sample bus image |
+| `python backend/detector.py` | Runs detection on local `bus.jpg` image |
+| `python voice_test.py` | Checks basic text-to-speech output |
+| `python voice_test2.py` | Checks sequential Windows SAPI5 announcements |
+
+---
+
+## Team File Ownership
+
+- **M1 (Lakshman)**: `DEPLOY_LINUXONE.md`, `backend/detector_onnx.py`, `backend/yolo11n.onnx`, tests
+- **M2 (John)**: `backend/detector.py`, `track.py`, `detech.py`, `voice_test*.py`
+- **M3 (Ani)**: `backend/alerts.py`, `backend/describe.py`, `backend/main.py`
+- **M4 (Harish)**: `backend/navigation.py`, navigation frontend
+- **M5 (Harshith)**: `frontend/index.html`, `frontend/app.js`, web client
+- **M6**: `frontend/style.css`, demo assets, pitch deck
+
+> **Notice**: Prototype only. This system is not a replacement for a white cane, guide dog, or established mobility support.
