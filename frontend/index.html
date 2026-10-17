@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08131d">
+  <title>PathVoice — Smart Navigation</title>
+  <link rel="stylesheet" href="style.css?v=speech-queue-20261017">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">PV</div>
+      <div><p class="eyebrow">AI OBJECT-AWARENESS PROTOTYPE</p><h1>PathVoice</h1></div>
+      <span id="connectionBadge" class="badge" role="status">Offline</span>
+    </header>
+
+    <section class="intro" aria-labelledby="introTitle">
+      <p class="eyebrow">YOUR AWARENESS, AMPLIFIED</p>
+      <h2 id="introTitle">A little more confidence with every step.</h2>
+      <p>Camera-based obstacle awareness and spoken guidance, designed for a phone.</p>
+    </section>
+
+    <section class="camera-card" aria-label="Live camera preview">
+      <div class="camera-stage">
+        <video id="cameraVideo" autoplay muted playsinline aria-label="Rear camera preview"></video>
+        <canvas id="overlayCanvas" aria-hidden="true"></canvas>
+        <div id="cameraPlaceholder" class="camera-placeholder"><span class="camera-icon">◎</span><p>Camera preview will appear here</p></div>
+        <div class="live-tag"><span class="live-dot"></span> LIVE VIEW</div>
+      </div>
+      <div class="camera-meta"><span id="statusText" role="status">Ready to start</span><span id="statsText">No frames sent</span></div>
+    </section>
+
+    <button id="startButton" class="primary-button" type="button">Start camera and alerts</button>
+    <div class="action-grid">
+      <button id="summaryButton" class="secondary-button" type="button">What is around me?</button>
+      <button id="describeButton" class="secondary-button" type="button">Describe scene</button>
+      <button id="navigateButton" class="secondary-button" type="button">Navigate</button>
+      <button id="sosButton" class="sos-button" type="button">SOS emergency</button>
+      <button id="voiceButton" class="secondary-button" type="button">
+        Start voice command
+</button>
+      <button id="testVoiceButton" class="secondary-button" type="button">Test Voice</button>
+    </div>
+    <p id="voiceStatus" class="voice-status" role="status" aria-live="polite">Checking voice output…</p>
+    <form id="manualCommandForm" class="manual-form">
+      <label for="manualCommandInput">Type a command if voice input is unavailable</label>
+      <div class="manual-input-row">
+        <input id="manualCommandInput" type="text" autocomplete="off"
+          placeholder="e.g., describe scene or navigate to the library">
+        <button class="secondary-button" type="submit">Send command</button>
+      </div>
+    </form>
+    <form id="destinationForm" class="manual-form" hidden>
+      <label for="destinationInput">Enter a destination</label>
+      <div class="manual-input-row">
+        <input id="destinationInput" type="text" autocomplete="street-address"
+          aria-describedby="navigationDisclaimer"
+          placeholder="Type a place name">
+        <button class="secondary-button" type="submit">Check destination</button>
+      </div>
+      <p id="navigationDisclaimer" class="form-help">
+        <strong>Turn-by-turn navigation is not available.</strong>
+        PathVoice does not provide turn-by-turn directions. Use a dedicated
+        navigation app for route guidance. PathVoice has not verified your
+        route or its safety.
+      </p>
+    </form>
+    <section class="message-card" aria-live="polite"><p class="eyebrow">LATEST UPDATE</p><p id="messageText">Tap Start to grant camera permission and connect.</p></section>
+    <p class="safety-note">Prototype only: this system is not a replacement for a white cane, guide dog, or established mobility support. Do not use it as your sole safety aid.</p>
+  </main>
+  <script src="app.js?v=speech-queue-20261017-v3"></script>
+</body>
+</html>
