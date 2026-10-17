@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.vscode/
+.venv/
+.DS_Store
+push_to_m4.bat
