@@ -1,0 +1,8 @@
+# OpenCV and NumPy are expected from Ubuntu's python3-opencv package and its
+# system dependencies. Confirm those imports work in the chosen environment
+# before using these pip requirements. Do not add a pip OpenCV wheel without
+# verifying an s390x build. Torch, TorchVision, and Ultralytics are not used
+# when PATHVOICE_INFERENCE_ENGINE=onnx.
+fastapi
+uvicorn
+websockets
