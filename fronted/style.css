@@ -1,0 +1,68 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 16px;
+    font-family: Arial, sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+h1, h2 {
+    color: #123b63;
+}
+
+button {
+    display: block;
+    width: 100%;
+    padding: 13px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 8px;
+    background: #1769aa;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #104e82;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+input {
+    width: 100%;
+    padding: 13px;
+    margin: 8px 0;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+#map {
+    height: 400px;
+    width: 100%;
+    margin: 16px 0;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+}
+
+#gpsStatus,
+#searchStatus {
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Smart Navigation</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="container">
+        <h1>AI Smart Navigation</h1>
+        <p>Walking Navigation for Visually Impaired People</p>
+
+        <button id="locationBtn">Get My Location</button>
+        <p id="gpsStatus">Waiting for GPS...</p>
+        <p>Latitude: <span id="latitude">--</span></p>
+        <p>Longitude: <span id="longitude">--</span></p>
+        <p>Accuracy: <span id="accuracy">--</span></p>
+
+        <div id="map"></div>
+
+        <h2>Find Destination</h2>
+        <input id="destination" type="text" placeholder="Enter destination">
+        <button id="searchBtn">Search Destination</button>
+        <p id="searchStatus"></p>
+
+        <button id="routeBtn">Get Walking Route</button>
+        <p id="routeStatus">Search for a destination first.</p>
+        <p id="routeSummary"></p>
+
+        <h3>Walking Directions</h3>
+        <ol id="directions"></ol>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="map.js"></script>
+</body>
+</html>
