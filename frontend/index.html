@@ -55,20 +55,22 @@
       <label for="destinationInput">Enter a destination</label>
       <div class="manual-input-row">
         <input id="destinationInput" type="text" autocomplete="street-address"
-          aria-describedby="navigationDisclaimer"
           placeholder="Type a place name">
-        <button class="secondary-button" type="submit">Check destination</button>
+        <button id="destinationSubmitBtn" class="secondary-button" type="submit">Start navigation</button>
       </div>
-      <p id="navigationDisclaimer" class="form-help">
-        <strong>Turn-by-turn navigation is not available.</strong>
-        PathVoice does not provide turn-by-turn directions. Use a dedicated
-        navigation app for route guidance. PathVoice has not verified your
-        route or its safety.
-      </p>
+      <div id="navActiveControls" style="display:none;margin-top:10px;">
+        <button id="stopNavBtn" class="secondary-button" type="button" style="border-color:#ff7078;color:#ff7078;width:100%;">Stop navigation</button>
+      </div>
+      <div id="navDetails" style="margin-top:12px;" hidden>
+        <p id="navmsg" style="margin:6px 0;font-weight:600;color:var(--accent);"></p>
+        <p id="navLive" style="margin:6px 0;font-weight:700;font-size:1.05rem;"></p>
+        <ol id="navSteps" style="margin:8px 0;padding-left:20px;font-size:0.9rem;color:var(--muted);max-height:180px;overflow-y:auto;"></ol>
+      </div>
     </form>
     <section class="message-card" aria-live="polite"><p class="eyebrow">LATEST UPDATE</p><p id="messageText">Tap Start to grant camera permission and connect.</p></section>
     <p class="safety-note">Prototype only: this system is not a replacement for a white cane, guide dog, or established mobility support. Do not use it as your sole safety aid.</p>
   </main>
+  <script src="map.js"></script>
   <script src="app.js?v=speech-queue-20261017-v3"></script>
 </body>
 </html>

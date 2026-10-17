@@ -241,6 +241,7 @@ if (window.speechSynthesis?.addEventListener) {
   });
 }
 initializeSpeech();
+window.speak = speak;
 
 // Announces eligible object categories without repeating
 // continuously visible objects.
@@ -726,11 +727,6 @@ document.querySelector('#sosButton').addEventListener('click', () => {
 
 function sendCommand(command) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
-    if (command.type === 'set_destination') {
-      showNavigationUnavailable(command.query);
-      return;
-    }
-
     const message = 'Start the camera and connect first.';
     messageText.textContent = message;
     speak(message, {
@@ -754,28 +750,10 @@ function submitDestination(value) {
   }
 
   destinationInput.value = '';
-  sendCommand({
-    type: 'set_destination',
-    query: destination
-  });
-}
-
-function showNavigationUnavailable(destination) {
-  const firstNotice = !navigationNoticeSpoken;
-  const disclaimer = firstNotice
-    ? 'PathVoice does not provide turn-by-turn directions. Use a dedicated ' +
-      'navigation app for route guidance. PathVoice has not verified your ' +
-      'route or its safety.'
-    : 'Turn-by-turn navigation is not available.';
-  const message = `Destination entered: ${destination}. ${disclaimer}`;
-  messageText.textContent = message;
-  if (firstNotice) {
-    navigationNoticeSpoken = true;
-    speak(message, {
-      priority: 3,
-      dedupeKey: 'navigation-warning',
-      cooldown: Infinity,
-    });
+  if (typeof startNavigation === 'function') {
+    startNavigation(destination);
+  } else if (typeof window.startNavigation === 'function') {
+    window.startNavigation(destination);
   }
 }
 
@@ -838,12 +816,21 @@ function handleVoiceCommand(transcript, source = 'Voice command') {
       command.slice('navigate to '.length).trim();
 
     if (destination) {
-      sendCommand({
-        type: 'set_destination',
-        query: destination
-      });
+      submitDestination(destination);
     }
 
+    return;
+  }
+
+  if (
+    command.includes('stop navigation') ||
+    command.includes('cancel navigation')
+  ) {
+    if (typeof stopNavigation === 'function') {
+      stopNavigation();
+    } else if (typeof window.stopNavigation === 'function') {
+      window.stopNavigation();
+    }
     return;
   }
 
