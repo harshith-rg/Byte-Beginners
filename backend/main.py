@@ -1,6 +1,6 @@
+"""FastAPI backend with YOLO object detection and alert engine over WebSocket."""
 
-"""FastAPI backend with YOLO object detection over WebSocket."""
-
+import asyncio
 import base64
 import json
 import logging
@@ -12,18 +12,32 @@ import cv2
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+try:
+    from backend.alerts import AlertEngine
+    from backend.describe import describe_scene
+except ImportError:
+    from alerts import AlertEngine
+    from describe import describe_scene
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="IBM Z Datathon Smart Navigation API")
+app = FastAPI(title="Byte-Beginners / PathVoice Smart Navigation API", version="1.0.0")
 
 INFERENCE_ENGINE = os.environ.get(
     "PATHVOICE_INFERENCE_ENGINE",
     "ultralytics",
 ).strip().lower()
 
+MODEL_PATH = os.getenv("YOLO_MODEL", "yolo11n.pt")
+CONFIDENCE = float(os.getenv("CONFIDENCE", "0.35"))
+
 if INFERENCE_ENGINE == "onnx":
-    from detector_onnx import ONNXDetector
+    try:
+        from backend.detector_onnx import ONNXDetector
+    except ImportError:
+        from detector_onnx import ONNXDetector
 
     detector = ONNXDetector(
         os.environ.get("PATHVOICE_ONNX_MODEL", "yolo11n.onnx")
@@ -33,12 +47,15 @@ elif INFERENCE_ENGINE == "ultralytics":
     from ultralytics import YOLO
 
     # Load the model once when the server starts, not on every frame.
-    model = YOLO("yolo11n.pt")
+    model = YOLO(MODEL_PATH)
     detector = None
 else:
     raise ValueError(
         "PATHVOICE_INFERENCE_ENGINE must be 'ultralytics' or 'onnx'"
     )
+
+latest_frame: np.ndarray | None = None
+latest_frame_lock = asyncio.Lock()
 
 
 @app.get("/health")
@@ -46,6 +63,8 @@ async def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "smart-navigation-backend",
+        "engine": INFERENCE_ENGINE,
+        "model": MODEL_PATH if model else "onnx",
     }
 
 
@@ -79,7 +98,7 @@ def detect_objects(frame: np.ndarray) -> list[dict[str, Any]]:
     results = model.predict(
         source=frame,
         imgsz=320,
-        conf=0.35,
+        conf=CONFIDENCE,
         verbose=False,
     )
 
@@ -90,53 +109,44 @@ def detect_objects(frame: np.ndarray) -> list[dict[str, Any]]:
             continue
 
         for box in result.boxes:
-            x1, y1, x2, y2 = box.xyxy[0].tolist()
-            class_id = int(box.cls[0].item())
-            confidence = float(box.conf[0].item())
-            label = model.names[class_id]
+            class_id = int(box.cls.item())
+            name = result.names[class_id]
+            conf = float(box.conf.item())
 
-            # Convert pixel coordinates to 0..1 normalized coordinates.
-            x = max(0.0, min(1.0, x1 / width))
-            y = max(0.0, min(1.0, y1 / height))
-            box_width = max(0.0, min(1.0 - x, (x2 - x1) / width))
-            box_height = max(0.0, min(1.0 - y, (y2 - y1) / height))
+            # Convert xyxy pixel coordinates to normalized 0-1 values.
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
 
             detections.append({
-                "label": f"{label} {confidence:.0%}",
-                "class_name": label,
-                "confidence": round(confidence, 3),
+                "label": name,
+                "confidence": round(conf, 2),
                 "box": [
-                    round(x, 4),
-                    round(y, 4),
-                    round(box_width, 4),
-                    round(box_height, 4),
+                    round(max(0.0, min(1.0, x1 / width)), 4),
+                    round(max(0.0, min(1.0, y1 / height)), 4),
+                    round(max(0.0, min(1.0, x2 / width)), 4),
+                    round(max(0.0, min(1.0, y2 / height)), 4),
                 ],
-                "level": "normal",
             })
 
     return detections
 
 
-def _detection_counts(
-    detections: list[dict[str, Any]],
-) -> list[tuple[str, int]]:
+def _detection_counts(detections: list[dict[str, Any]]) -> list[tuple[str, int]]:
     counts: dict[str, int] = {}
     for detection in detections:
-        name = str(detection.get("class_name") or "unknown object")
-        counts[name] = counts.get(name, 0) + 1
-    return list(counts.items())
+        label = str(detection.get("label", "unknown"))
+        counts[label] = counts.get(label, 0) + 1
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
 
 
 def _summary_text(detections: list[dict[str, Any]]) -> str:
     if not detections:
         return (
-            "No recognizable objects were detected in the latest processed "
-            "frame. This does not mean the area is clear; the detector can "
-            "miss objects."
+            "No objects are detected in the latest frame. Keep moving "
+            "slowly and rely on your regular mobility aid."
         )
 
-    counts = "; ".join(
-        f"{name}: {count} detection{'s' if count != 1 else ''}"
+    counts = ", ".join(
+        f"{name}: {count}"
         for name, count in _detection_counts(detections)
     )
     return (
@@ -166,11 +176,45 @@ def _description_text(detections: list[dict[str, Any]]) -> str:
     )
 
 
+class DescribeRequest(BaseModel):
+    question: str = Field(
+        default="What is around me?",
+        max_length=300,
+    )
+
+
+@app.post("/describe")
+async def describe(request: DescribeRequest):
+    async with latest_frame_lock:
+        image = latest_frame.copy() if latest_frame is not None else None
+
+    if image is None:
+        return {
+            "text": "No camera frame is available yet.",
+            "source": "fallback",
+        }
+
+    try:
+        text, source = await asyncio.to_thread(
+            describe_scene, image, request.question, model
+        )
+        return {"text": text, "source": source}
+    except Exception:
+        return {
+            "text": (
+                "I could not describe the scene right now. "
+                "Please pause and use your usual mobility aid."
+            ),
+            "source": "fallback",
+        }
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
     latest_detections: list[dict[str, Any]] | None = None
     navigation_disclaimer_sent = False
+    alert_engine = AlertEngine(cooldown=3.0)
 
     try:
         while True:
@@ -180,6 +224,16 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             try:
                 message: dict[str, Any] = json.loads(raw)
                 kind = message.get("type")
+
+                if kind == "navigation":
+                    alert_engine.update_navigation(message)
+                    await websocket.send_json({
+                        "type": "navigation_ack",
+                        "instruction": alert_engine.navigation["instruction"],
+                        "direction": alert_engine.navigation["direction"],
+                        "active": alert_engine.navigation["active"],
+                    })
+                    continue
 
                 if kind == "frame":
                     frame = decode_jpeg_data_url(
@@ -209,6 +263,11 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                         })
                         continue
 
+                    # Update global latest frame for /describe endpoint
+                    async with latest_frame_lock:
+                        global latest_frame
+                        latest_frame = frame.copy()
+
                     latest_detections = [
                         {
                             **detection,
@@ -216,6 +275,21 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                         }
                         for detection in detections
                     ]
+
+                    # Compute alert using M3 AlertEngine
+                    pixel_detections = [
+                        {
+                            **d,
+                            "box": [
+                                d["box"][0] * width,
+                                d["box"][1] * height,
+                                d["box"][2] * width,
+                                d["box"][3] * height,
+                            ],
+                        }
+                        for d in detections
+                    ]
+                    alert_text = alert_engine.process(pixel_detections, width, height) or ""
 
                     latency_ms = round(
                         (time.perf_counter() - started) * 1000,
@@ -229,13 +303,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                             int(time.time() * 1000),
                         ),
                         "detections": detections,
-                        "alert": "",
+                        "alert": alert_text,
                         "nav": {
-                            "instruction": "",
+                            "instruction": alert_engine.navigation["instruction"],
                             "distance_to_turn": None,
                             "bearing": None,
                             "off_route": False,
-                            "speak": False,
+                            "speak": bool(alert_text),
                         },
                         "stats": {
                             "latency_ms": latency_ms,
@@ -332,8 +406,9 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
 
 # Mount the frontend last.
-app.mount(
-    "/",
-    StaticFiles(directory="../frontend", html=True),
-    name="frontend",
-)
+if os.path.exists("../frontend"):
+    app.mount(
+        "/",
+        StaticFiles(directory="../frontend", html=True),
+        name="frontend",
+    )
